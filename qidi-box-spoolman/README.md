@@ -59,7 +59,7 @@ In Fluidd:
 4. Save
 4. If `SET_ACTIVE_SPOOL` and `CLEAR_ACTIVE_SPOOL` macros are not available - create a new file named: `spool_macros.cfg` and paste the contents from [`spool_macros.cfg`](./spool_macros.cfg), then Save.
 
-### Step 2 — Include the file in the correct order
+### Step 2 — Include the files in the correct order
 In Fluidd, open `printer.cfg` and ensure the include order is:
 
 1. `box.cfg` (QIDI vendor file that defines the Box behavior)
