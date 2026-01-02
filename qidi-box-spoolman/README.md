@@ -1,4 +1,4 @@
-# QIDI Q2 + QIDI Box + Spoolman (Fluidd) — Slot-based spool tracking
+# QIDI Q2 / QIDI Plus4 + QIDI Box + Spoolman (Fluidd) — Slot-based spool tracking
 
 This project makes Spoolman filament usage tracking reliable on **QIDI Q2 + QIDI Box** by tying Spoolman spools to **physical Box slots**, not to tools.
 
