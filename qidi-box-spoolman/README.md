@@ -1,154 +1,186 @@
-# QIDI Q2 / QIDI Plus4 + QIDI Box + Spoolman (Fluidd) — Slot-based spool tracking
+# QIDI Q2 / Plus4 + QIDI Box + Spoolman (Fluidd) — correct slot-based spool tracking
 
-This project makes Spoolman filament usage tracking reliable on **QIDI Q2 + QIDI Box** by tying Spoolman spools to **physical Box slots**, not to tools.
+This update helps Spoolman track filament usage correctly on **QIDI printers with QIDI Box** by linking Spoolman spools to **physical Box slots** (Slot 1–4), not to tools (T0–T3).
 
-✅ Designed for **Qidi Studio**  
-✅ Also works with **Orca and other slicers**  
-✅ Should also work with **Qidi Plus4 + Qidi Box** and other Box'ed printers
+**Why this matters:** on QIDI, the mapping **Tool → Box slot** can change between jobs/sessions. If you assign spools directly to `T0..T3`, your “colors” can look swapped. Slot-based assignment stays correct even when QIDI changes the tool/slot mapping behind the scenes.
 
----
-
-## What this solves
-
-With QIDI BOX installed on QIDI Q2, the printer maintains a dynamic mapping from tools to box slots.
-
-Qidi Studio / the printer may change these values per job or session (sometimes unexpectedly).  
-If you assign Spoolman spools directly to **T0..T3**, it can look like your spools “swap” or “randomize”.
-
-**Solution:**  
-Assign spools to **physical slots** instead:
-
-- `BOX1_SLOT1..BOX1_SLOT4` represent **physical Box slots 1..4**
-- `T0..T3` dynamically select the correct "slot to tool" assignment by reading the current mapping
-
-This keeps tracking correct even if QIDI changes tool <> slot mapping behind the scenes.
+✅ Works with **Qidi Studio**, **Orca Slicer**, and any other slicer.  
+✅ Tested: Qidi Q2 (firmware v.1.1.0-1.1.1) + single Qidi Box  
+✅ Also includes a fix for the SAVED_VARIABLES Fluidd 1.30.x bug (used by Qidi) — see https://github.com/fluidd-core/fluidd/pull/1563 — which preserves spool setup across restarts and power cycles.   
+⚠️ Should also work on Plus4 (the Box logic is the same), but not tested yet.   
+⚠️ Do it on your own risk and only when printer idle, and take a backup first. (You’ve been warned.)
 
 ---
 
-## Safety / “please don’t do this” notes
+## Quick start
 
-You *can* do dangerous things like editing `saved_variables.cfg` manually while the printer is running.
+**Good news:** with this setup, your Spoolman slot assignments are **saved properly** and are restored **correctly after a printer reboot**.
 
-- Will it work? Sometimes.
-- Is it a good idea? No.
-- Why? You can break tool/slot logic mid-print and cause failed loads, runouts, or worse.
+1) Open **Fluidd → Spoolman → Change Spool**  
+   Assign spools to the **physical Box slots**:
+    - `BOX1_SLOT1` → choose the spool physically loaded in Slot 1
+    - `BOX1_SLOT2` → Slot 2
+    - `BOX1_SLOT3` → Slot 3
+    - `BOX1_SLOT4` → Slot 4
 
-If you insist, do it only when idle and take a backup first. (You’ve been warned.)
+2) Print normally from **Qidi Studio** (no slicer/profile changes needed).  
+   When the printer uses `T0/T1/T2/T3`, our macros automatically:
+    - read QIDI’s current Tool → Slot mapping (`value_t0..value_t3`)
+    - pick the correct **physical slot**
+    - set the correct **active spool** in Spoolman  
+      → Spoolman subtracts filament from the spool that’s actually printing.
+
+3) **Important (Fluidd 1.30.x bug):**  
+   Latest QIDI firmware images ship with Fluidd **1.30.x**, which has a bug where spool selections may only “save once” and then revert to old colors after the next change or reboot.  
+   We **fix that bug here** (see: **“Known bug: Fluidd 1.30.x…”** section).
+
+Result: Spoolman always tracks the correct filament, even if QIDI changes tool/slot mapping.
 
 ---
 
-## Prerequisites
+## Requirements
 
-- Klipper + Moonraker + Fluidd access (available on Q2 / Plus4 out of the box)
-- Spoolman installed and visible in Fluidd (Dashboard > Adjust Dashboard Layout > check Spoolman)
-- Spoolman macros available in Klipper:
-    - `SET_ACTIVE_SPOOL`
-    - `CLEAR_ACTIVE_SPOOL`
+- You can open Fluidd and run console commands (Moonraker/Klipper).
+- Spoolman is enabled in `moonraker.cfg` and visible in Fluidd — see https://moonraker.readthedocs.io/en/latest/configuration/#spoolman
+- Spoolman Klipper macros exist — see https://moonraker.readthedocs.io/en/latest/configuration/#setting-the-active-spool-from-klipper
+  - `SET_ACTIVE_SPOOL`
+  - `CLEAR_ACTIVE_SPOOL`
 
-If you don’t have these commands, include `spool_macros.cfg` into `printer.cfg` (see instructions below).
+If you don’t have those macros, add them at the end of the `printer.cfg`.
 
 ---
 
 ## Install
 
-### Step 1 — Add the config file
-In Fluidd:
-1. Open **Configuration**
-2. Create a new file named: `spoolman_qidi_box1.cfg`
-3. Paste the contents from [`spoolman_qidi_box1.cfg`](./spoolman_qidi_box1.cfg)
-4. Save
-4. If `SET_ACTIVE_SPOOL` and `CLEAR_ACTIVE_SPOOL` macros are not available - create a new file named: `spool_macros.cfg` and paste the contents from [`spool_macros.cfg`](./spool_macros.cfg), then Save.
+### 1) Add config files
 
-### Step 2 — Include the files in the correct order
-In Fluidd, open `printer.cfg` and ensure the include order is:
+In Fluidd → **Configuration**:
 
-1. `box.cfg` (QIDI vendor file that defines the Box behavior)
-2. `spoolman_qidi_box1.cfg` (this project’s overrides)
-3. `spool_macros.cfg` (optionally - if needed)
+1) Create `spoolman_qidi_box1.cfg` and paste contents from this repo:  
+   [`spoolman_qidi_box1.cfg`](./spoolman_qidi_box1.cfg)
 
-Example:
+
+### 2) Include `spoolman_qidi_box1.cfg`  in `printer.cfg` (order matters)
+
+Open `printer.cfg` and ensure order like this:
 
 ```ini
-[include box.cfg]
-[include spoolman_qidi_box1.cfg]
-[include spool_macros.cfg]
+[include box.cfg]                 # QIDI vendor file (Box logic)
+[include spoolman_qidi_box1.cfg]  # this repo (must be AFTER box.cfg)
 ```
 
-If your includes are split across multiple files, the rule is the same: box.cfg must load first, then this project file after it.
+### 3) Restart Klipper
 
-### Step 3 — Restart Klipper
+In Fluidd Console:
 
-In Fluidd console:
-
-`RESTART`
-
----
-
-## Add Spoolman to Fluidd Dashboard
-
-1. Fluidd → Dashboard → Adjust Dashboard Layout → Add `Spoolman`
-2. Add `Macros`
-3. Save layout
-4. Hard refresh (Ctrl+F5)
-
-Tip: Pin CHEATSHEET_BOX1 in the Macros card.
+```
+RESTART
+```
 
 ---
 
-## Daily workflow
-### Assign spools to physical slots (in Spoolman UI)
+## Add Spoolman to the Fluidd dashboard
 
-1. Fluidd → Spoolman → Change Spool:
-2. Select BOX1_SLOT1 → choose spool physically loaded in Slot 1
-3. Select BOX1_SLOT2 → Slot 2
-4. Select BOX1_SLOT3 → Slot 3
-5. Select BOX1_SLOT4 → Slot 4
+Fluidd → Dashboard → **Adjust Dashboard Layout**  
+Enable widgets:
+- **Spoolman**
+- **Macros**
 
-Do NOT assign spools to T0..T3 in Spoolman (they shouldn't show up until you have them cached previously in `saved_variables.cfg`)
+Save layout, then hard refresh the browser (**Ctrl+F5**).
 
-### Print normally (Qidi Studio)
-
-* No slicer changes required. Keep your stock profiles.
-* When the printer executes T0/T1/T2/T3:
-    * We read value_tN (what slot that tool points to right now)
-    * We set Spoolman active spool to whatever is assigned to that slot
-    * Spool usage is tracked correctly
+Tip: Pin `CHEATSHEET_BOX1` in the Macros widget for quick access.
 
 ---
 
-## Verification / Debug
 
-### Quick status
+## Debug / “what is set right now?”
 
-Run in Fluidd console:
+Run in Fluidd Console:
 
-`CHEATSHEET_BOX1`
+```
+CHEATSHEET_BOX1
+```
 
-It prints slot / tool / spool dependency
-
----
-
-## Persistence across restarts
-
-Fluidd auto-saves selections for macros with `variable_spool_id`.
-This project restores only the slot selector macros on startup:
-
-`BOX1_SLOT1..BOX1_SLOT4`
-
-Tools (T0..T3) are intentionally not restored from old tool-based keys.
+It prints:
+- the spool_id assigned to each physical slot macro (`BOX1_SLOT1..4`)
+- the current QIDI tool→slot map (`value_t0..value_t3`)
 
 ---
 
-## Extending to multiple Qidi Boxes (future)
+## Persistence across restarts (important)
 
-This project is structured to scale:
+Spool selections should survive reboot because Fluidd stores them in `saved_variables.cfg` and we restore them on startup.
 
-* `spoolman_qidi_box1.cfg`
-* `spoolman_qidi_box2.cfg` (future)
-* etc.
+If after reboot you see **old spools/colors** coming back, you likely hit the **Fluidd 1.30.x Spoolman SAVE_VARIABLES bug** described below.
 
-The pattern:
+---
 
-BOX2_SLOT1..4 (Box2 physical slots)
+## Known bug: Fluidd 1.30.x saves wrong variable name (spools don’t update after the first change)
 
-Tools T4..T7 map to value_t4..value_t7
+### Symptoms
+
+- The **first** time you assign a spool to `BOX1_SLOTn`, it saves.
+- The **second** time you change that slot, it *looks* changed in UI, but after reboot you get the old value again.
+- In Chrome DevTools → Network → WS frames you see commands like:
+
+```
+SAVE_VARIABLE VARIABLE=BOX1_SLOT3__SPOOL_ID VALUE=25
+```
+
+### Why it happens
+
+Klipper’s `save_variables` ends up storing variable names in **lowercase** on disk.
+Older Fluidd (1.30.x) saves Spoolman selections using **uppercase** (`BOX1_SLOT3__SPOOL_ID`), which breaks updates/persistence.
+
+Newer Fluidd fixes this by saving the variable name in **lowercase**:
+`box1_slot3__spool_id`  — see https://github.com/fluidd-core/fluidd/pull/1563
+
+### Fix: patch the Fluidd bundle on the printer (works on QIDI printers)
+
+This is the practical fix if you can’t upgrade Fluidd on your printer.
+
+**What it does:** it edits Fluidd’s compiled JS so it saves `box1_slotX__spool_id` instead of `BOX1_SLOTX__SPOOL_ID`.
+
+1) SSH into the printer and upload  [`patch_fluidd_spoolman_savevars.sh`](./patch_fluidd_spoolman_savevars.sh) to:
+  `/home/mks/printer_data/config/patch_fluidd_spoolman_savevars.sh`
+
+2) Run (copy-paste):
+
+```bash
+bash /home/mks/printer_data/config/patch_fluidd_spoolman_savevars.sh
+```
+
+3) In your browser open Fluidd and do a hard refresh (**Ctrl+Shift+R**).
+
+**Revert:**
+
+The script creates a backup folder `~/fluidd.bak_YYYY-MM-DD_HHMMSS`. Within the same SSH session, the easy way to revert is to run:
+
+```bash
+rm -rf ${FLUIDD_DIR} && cp -a ${BACKUP_DIR} ${FLUIDD_DIR}"
+```
+
+---
+
+## Safety notes
+
+- Avoid manually editing `saved_variables.cfg` while the printer is running. Do it only when idle and after a backup.
+- If you really want to do dangerous stuff, you can — just don’t be surprised when it bites you.
+
+---
+
+## Multi-box future (not tested)
+
+This repo is structured to scale:
+
+- `spoolman_qidi_box1.cfg`
+- `spoolman_qidi_box2.cfg`(READY)
+- `spoolman_qidi_box2.cfg`(future)
+- etc.
+
+Pattern:
+- `BOX2_SLOT1..4` represent Box2 physical slots
+- Tools `T4..T7` map via `value_t4..value_t7`
+
+---
+
