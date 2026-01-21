@@ -58,7 +58,14 @@ In Fluidd → **Configuration**:
 
 1) Create `spoolman_qidi_box1.cfg` and paste contents from this repo:  
    [`spoolman_qidi_box1.cfg`](./spoolman_qidi_box1.cfg)
+2) (Optional) Open `gcode_macro.cfg` → find `M603` macro (unload filament)→ Add `CLEAR_ACTIVE_SPOOL` to the end of M603 (Put it after `M118 Unload finish`):
 
+```ini
+    M118 Unload finish
+    CLEAR_ACTIVE_SPOOL
+```
+
+This prevents Spoolman from continuing to deduct from the previously active spool after an unload.
 
 ### 2) Include `spoolman_qidi_box1.cfg`  in `printer.cfg` (order matters)
 
