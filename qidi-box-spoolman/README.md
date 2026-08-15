@@ -1,734 +1,374 @@
-# QIDI Box + Spoolman Plus 4 Edition
-## Community Fork with Dual QIDI Box Support
-A community-maintained fork of the original **QIDI Box + Spoolman integration project** by **Ivantify**.
+# QIDI Box Auto-Select Spoolman — Never Pick a Spool Manually Again
 
-This fork expands the original project by adding support for the **QIDI Plus 4** and enabling operation with **dual QIDI Boxes** for expanded filament management.
+A Klipper/Spoolman integration for QIDI printers with QIDI Box, built and
+maintained for the **QIDI Plus 4**, supporting **1 to 4 QIDI Boxes**
+(up to 16 filament positions).
 
----
+This project tracks Spoolman filament usage by physical **Box slot**
+(Slot 1–4 per box), not by tool number — because QIDI dynamically maps tool
+numbers to physical slots, and that mapping can change between jobs and
+even between boxes.
 
-# Original Project
-
-This repository is based on the original work created by **Ivantify**.
-
-The original project provided:
-
-- QIDI Q2 support
-- Single QIDI Box integration
-- Spoolman filament management
-- Klipper configuration and macros for QIDI Box operation
-
-Original project:
-
-https://github.com/Ivantify/qidi/tree/main/qidi-box-spoolman
+Currently tested with **two** boxes (8 slots); written to extend cleanly to
+three or four boxes (12/16 slots) as hardware is added — see
+[Adding More Boxes](#adding-more-boxes-3rd--4th) below.
 
 ---
 
-# Fork Maintainer
+## Features
 
-**jOethebuilder**
-
-Forked from:
-
-https://github.com/jOethebuilder/qidi-box-spoolman-plus4/tree/main/qidi-box-spoolman
-
----
-
-# About This Fork
-
-The purpose of this fork is to expand the original QIDI Box + Spoolman integration for additional QIDI hardware configurations.
-
-The main development focus has been adapting the original project for:
-
-- QIDI Plus 4
-- Dual QIDI Boxes
-- 8 filament position management
-
-This fork has been developed and tested on:
-
-- QIDI Plus 4
-- Two QIDI Boxes
-- Spoolman
-- Fluidd
-- Moonraker
+- Full multi-slot Spoolman tracking across however many QIDI Boxes you run
+- Every T-macro checks **all** physical slots across **all** configured
+  boxes, not just its "own" box's 4 — because QIDI can put any tool on any
+  box
+- Automatic active-spool selection at print start (not just mid-print tool
+  changes) via a slicer Start G-code hook
+- Fluidd 1.30.x save-variable casing bug patch included
+- Tested on: QIDI Plus 4, two QIDI Boxes, Spoolman, Fluidd, Moonraker
 
 ---
 
-# Changes Added In This Fork
-
-## QIDI Plus 4 Support
-
-Added support and configuration changes for the QIDI Plus 4:
-
-- Updated configuration files
-- Updated QIDI Box integration
-- Updated macros
-- Added Plus 4 setup instructions
-- Tested operation with Spoolman
-
----
-
-## Dual QIDI Box Support
-
-Added support for running two QIDI Boxes together.
-
-Features:
-
-- Expanded filament management from 4 positions to 8 positions
-- Added Box 2 configuration
-- Added Box 2 spool tracking
-- Updated tool-to-slot mapping
-- Tested with:
-  - QIDI Plus 4
-  - Dual QIDI Boxes
-  - Spoolman
-
----
-
-# Supported Printers
+## Supported Printers
 
 | Printer | Status |
 |---|---|
-| QIDI Q2 | Supported (original project) |
-| QIDI Plus 4 | Tested |
-| QIDI Plus 4 + Dual QIDI Boxes | Tested |
+| QIDI Plus 4 + 1 QIDI Box | Expected to work |
+| QIDI Plus 4 + 2 QIDI Boxes | Tested |
+| QIDI Plus 4 + 3–4 QIDI Boxes | Expected to work (not tested), see below |
 | QIDI Plus4 Max | Expected to work (not tested) |
-
-Community testing and feedback are welcome.
+| QIDI Q2 | Not tested on this fork — see original project below |
 
 ---
 
-# Requirements
+## Requirements
 
-## Spoolman Requirements
+### Spoolman
 
-Spoolman must be enabled in `moonraker.cfg`.
-
-Your `moonraker.cfg` should contain:
+Spoolman must be enabled in `moonraker.conf`:
 
 ```ini
 [spoolman]
-server: http://localhost:7912
-if not add this at the end
----
-
-# Installation
-
-## Before Starting
-
-**Always backup your existing printer configuration files.**
-
-Do not overwrite your complete `printer.cfg`.
-
-The files in this repository should be merged with your existing QIDI configuration.
-
----
-
-# Add Configuration Files
-
-In Fluidd:
-
-1. Open:
-
-```
-Configuration
+server: http://<your-spoolman-ip>:7912
+sync_rate: 5
 ```
 
-2. Click:
+### Required Spoolman Macros
 
+`SET_ACTIVE_SPOOL` and `CLEAR_ACTIVE_SPOOL` are required, and are **not**
+included in this repo's `.cfg` files — they must live directly in your
+**`printer.cfg`** (a QIDI vendor file):
+
+```ini
+[gcode_macro SET_ACTIVE_SPOOL]
+gcode:
+  {% if params.ID %}
+    {% set id = params.ID|int %}
+    {action_call_remote_method(
+       "spoolman_set_active_spool",
+       spool_id=id
+    )}
+  {% else %}
+    {action_respond_info("Parameter 'ID' is required")}
+  {% endif %}
+
+[gcode_macro CLEAR_ACTIVE_SPOOL]
+gcode:
+  {action_call_remote_method(
+    "spoolman_set_active_spool",
+    spool_id=None
+  )}
 ```
-Create File
-```
 
-This creates a new Klipper configuration file in your printer configuration folder.
-
----
-
-## Single QIDI Box Setup
-
-Create a new file:
-
-```
-spoolman_qidi_box1.cfg
-```
-
-Copy the contents from this repository into the file.
-
-Save the file.
+⚠️ **Because these live in `printer.cfg`, a QIDI firmware update will wipe
+them out.** See [Known Issue: QIDI Firmware Updates Wipe printer.cfg](#known-issue-qidi-firmware-updates-wipe-printercfg)
+below.
 
 ---
 
-## Dual QIDI Box Setup
+## Installation
 
-If you are using a second QIDI Box, or adding one later, create:
+**Always back up your existing configuration files first.** Do not
+overwrite your complete `printer.cfg` — the files here get merged in
+alongside your existing QIDI configuration.
 
-```
-spoolman_qidi_box2.cfg
-```
+### 1. Add the config files
 
-Copy the Box 2 configuration from this repository.
+In Fluidd → Configuration → Create File, create one file per box you have:
 
-Save the file.
+- `spoolman_qidi_box1.cfg` — always needed, paste contents from this repo
+- `spoolman_qidi_box2.cfg` — if running a 2nd Box
+- `spoolman_qidi_box3.cfg` / `spoolman_qidi_box4.cfg` — if/when you add a
+  3rd or 4th Box (see [Adding More Boxes](#adding-more-boxes-3rd--4th))
 
----
+### 2. Add includes to `printer.cfg`
 
-# Add Includes To printer.cfg
-
-The include order is important.
-
-`box.cfg` must load before the Spoolman integration files.
-
-## Single QIDI Box
+Order matters — `box.cfg` (QIDI vendor file) must load **before** these:
 
 ```ini
 [include box.cfg]
-
 [include spoolman_qidi_box1.cfg]
-```
-
----
-
-## Dual QIDI Box
-
-```ini
-[include box.cfg]
-
-[include spoolman_qidi_box1.cfg]
-
 [include spoolman_qidi_box2.cfg]
 ```
 
-Only add:
+(Add `spoolman_qidi_box3.cfg` / `box4.cfg` lines the same way as you add
+more boxes.)
+
+### 3. Add the SET_ACTIVE_SPOOL / CLEAR_ACTIVE_SPOOL macros to `printer.cfg`
+
+These do **not** go in any `spoolman_qidi_boxN.cfg` file — they need to be
+pasted directly into `printer.cfg` itself, since QIDI's tool macros expect
+them to exist at the top level.
+
+Open `printer.cfg` in Fluidd's Configuration editor, scroll to the very
+**bottom** of the file, and paste this block **before** the
+`#*# <---------------------- SAVE_CONFIG ---------------------->` line (if
+your file has one — that block is auto-generated by Klipper and anything
+placed after it can get overwritten):
 
 ```ini
-[include spoolman_qidi_box2.cfg]
+[gcode_macro SET_ACTIVE_SPOOL]
+gcode:
+  {% if params.ID %}
+    {% set id = params.ID|int %}
+    {action_call_remote_method(
+       "spoolman_set_active_spool",
+       spool_id=id
+    )}
+  {% else %}
+    {action_respond_info("Parameter 'ID' is required")}
+  {% endif %}
+
+[gcode_macro CLEAR_ACTIVE_SPOOL]
+gcode:
+  {action_call_remote_method(
+    "spoolman_set_active_spool",
+    spool_id=None
+  )}
 ```
 
-if you are using a second QIDI Box or adding one later.
+Save the file.
 
----
-
-# Restart Klipper
-
-After saving changes:
-
-Open Fluidd Console:
+### 4. Restart Klipper
 
 ```
 RESTART
 ```
 
-Check that Klipper starts without configuration errors.
+Check for errors in the console.
 
----
-# Verify Spoolman Macros
+### 5. Verify the macros loaded
 
-Before continuing, verify that the required Spoolman macros exist.
-
-Open:
+Don't scroll through `HELP` output — it's long and easy to miss things in.
+Instead, just run the macro directly in the console:
 
 ```
-Fluidd → Console
-```
-
-Run:
-
-```
-HELP
-```
-
-Verify these macros are available:
-
-```
-SET_ACTIVE_SPOOL
 CLEAR_ACTIVE_SPOOL
-ACTIVATE_SPOOL_FOR_TOOL
 ```
 
-If these macros do not exist:
+- **If it's missing**, Klipper gives an unmistakable error like
+  `Unknown command:"CLEAR_ACTIVE_SPOOL"` — go back to
+  [step 3](#3-add-the-set_active_spool--clear_active_spool-macros-to-printercfg)
+  and re-check `printer.cfg`.
+- **If it's loaded**, it just runs with no error.
 
-1. Check your existing configuration files for the Spoolman macro definitions.
+You can check `ACTIVATE_SPOOL_FOR_TOOL` and `SET_ACTIVE_SPOOL` the same
+way, or search "spool" in Fluidd's Macros panel filter box to see all three
+listed at once.
 
-Common locations:
+### 6. Required slicer Start G-code addition
 
-```
-printer.cfg
-macros.cfg
-spoolman.cfg
-```
-
-2. If they are missing, add the required Spoolman Klipper macros from the Spoolman documentation:
-
-https://github.com/Donkie/Spoolman/blob/master/docs/klipper.md
-
-3. Restart Klipper after adding the macros.
-
-In Fluidd Console:
-
-```
-RESTART
-```
-
----
-
-# ⚠️ Required Slicer Start G-Code Setup
-
-A slicer start G-code change is required for the first filament used in a print to be tracked correctly.
-
-Add:
+For the **first** tool of a print to be tracked correctly (not just
+mid-print tool changes), add this line to your slicer's Start G-code,
+**before** the existing `PRINT_START` line:
 
 ```gcode
 ACTIVATE_SPOOL_FOR_TOOL T=[initial_tool]
 ```
 
-Place this line before:
-
-```gcode
-T[initial_tool]
-```
-
 Example:
-
 ```gcode
 ACTIVATE_SPOOL_FOR_TOOL T=[initial_tool]
 
 PRINT_START BED=[bed_temperature_initial_layer_single] HOTEND=[nozzle_temperature_initial_layer] CHAMBER=[chamber_temperatures] EXTRUDER=[initial_tool]
-
 SET_PRINT_STATS_INFO TOTAL_LAYER=[total_layer_count]
-
 M83
-
 T[initial_tool]
 ```
 
-**Do not replace the complete QIDI start G-code.**
+**Do not replace your complete QIDI start G-code** — only add this one line.
 
-Only add the `ACTIVATE_SPOOL_FOR_TOOL` line to your existing QIDI start sequence.
+### 7. Assign spools to Box slots
+
+Fluidd → Spoolman → Change Spool:
+
+```
+BOX1_SLOT1 → physical Slot 1 (Box 1)
+BOX1_SLOT2 → physical Slot 2 (Box 1)
+BOX1_SLOT3 → physical Slot 3 (Box 1)
+BOX1_SLOT4 → physical Slot 4 (Box 1)
+
+BOX2_SLOT1 → physical Slot 1 (Box 2)
+BOX2_SLOT2 → physical Slot 2 (Box 2)
+BOX2_SLOT3 → physical Slot 3 (Box 2)
+BOX2_SLOT4 → physical Slot 4 (Box 2)
+```
+
+(Repeat the pattern for Box 3 / Box 4 as added.)
+
+Assignment must match what's physically loaded in each slot.
+
+### 8. Add Spoolman to the Fluidd dashboard
+
+Dashboard → Adjust Dashboard Layout → enable **Spoolman** and **Macros**
+widgets → save → hard refresh (`Ctrl+F5`).
+
+Recommended pinned macros: `CHEATSHEET_BOX1`, `CHEATSHEET_BOX2` (and
+`CHEATSHEET_BOX3`/`BOX4` once added).
 
 ---
 
-# Known Issue: Fluidd 1.30.x Spoolman Save Bug
-
-Some QIDI firmware versions ship with Fluidd 1.30.x.
-
-There is a known issue where Spoolman slot assignments may appear to save correctly but do not persist after reboot.
-
-## Symptoms
-
-- The first spool assignment works correctly.
-- Changing a spool assignment appears correct in Fluidd.
-- After restarting the printer, the previous spool assignment returns.
-
-Example:
-
-You change:
+## How It Works
 
 ```
-BOX1_SLOT3
+Physical QIDI Box Slot
+        ↓
+QIDI Tool Selection (T0-T15, however many boxes you run)
+        ↓
+Tool → Slot mapping (value_t0..value_tN, read live from saved_variables)
+        ↓
+Correct BOXn_SLOTx spool_id looked up
+        ↓
+Spoolman Active Spool set
 ```
 
-to a different spool.
-
-Fluidd shows the new spool.
-
-After reboot, the old spool appears again.
+Every T-macro checks **all** physical slots across **all** boxes you've
+configured, regardless of which box's file it lives in — QIDI can
+dynamically assign any tool to any box, and the tracking has to follow
+that, not assume a fixed T0-T3=Box1 / T4-T7=Box2 split.
 
 ---
 
-## Cause
+## Adding More Boxes (3rd / 4th)
 
-Fluidd 1.30.x saves the variable name using uppercase letters:
+QIDI's own firmware supports up to 4 boxes / T0-T15 (see `box1.cfg`'s
+stock macros). To extend this project to a 3rd or 4th box:
 
-```
-BOX1_SLOT3__SPOOL_ID
-```
+1. Create `spoolman_qidi_box3.cfg` (and/or `box4.cfg`), following the same
+   structure as `box1.cfg`/`box2.cfg`: `BOX3_SLOT1-4` selector macros, a
+   `RESTORE_TOOL_SPOOLS_BOX3` restore routine, a uniquely-named
+   `delayed_gcode` (e.g. `RESTORE_SELECTED_SPOOLS_BOX3`), a
+   `CHEATSHEET_BOX3` debug macro, and `T8-T11` (box3) / `T12-T15` (box4)
+   overrides.
+2. **Critical:** every T-macro's if/elif chain — in *every* box file, not
+   just the new one — needs to be extended to check the additional slots
+   (`slot8`-`slot11` for box3, `slot12`-`slot15` for box4), the same way
+   box1/box2's macros already check each other's slots. Skipping this is
+   the single most common source of bugs (see the section on why plain
+   4-slot-only tool macros silently fail below).
+3. Give every `delayed_gcode` section a unique name across all box files —
+   Klipper does not allow duplicate section names, and this silently
+   breaks the *other* box's restore-on-boot behavior with no error message.
+4. Add `[include spoolman_qidi_box3.cfg]` (and `box4.cfg`) to `printer.cfg`,
+   after `box.cfg` and after the existing box files.
 
-Klipper's `save_variables` system stores variable names in lowercase:
-
-```
-box1_slot3__spool_id
-```
-
-Because of this mismatch, spool changes may not restore correctly after reboot.
+This hasn't been tested yet on real 3-/4-box hardware — if you get there
+before this note is updated, contributions/PRs are welcome.
 
 ---
 
-## Fix
+## Known Issues
 
-A patch script is included to correct the Fluidd behavior.
+### QIDI Firmware Updates Wipe `printer.cfg`
 
-Upload:
+QIDI firmware updates overwrite `printer.cfg` with a fresh vendor copy.
+Since `SET_ACTIVE_SPOOL`/`CLEAR_ACTIVE_SPOOL` live there (not in this
+repo's files), **a firmware update will silently delete them.**
 
-```
-patch_fluidd_spoolman_savevars.sh
-```
+**Symptoms:**
+- Spoolman tab and all `BOXn_SLOTx` entries still show up fine
+- Active spool no longer changes automatically on tool change or print start
+- You have to manually pick the spool every time
+- `HELP` no longer lists `SET_ACTIVE_SPOOL` / `CLEAR_ACTIVE_SPOOL`
 
-to:
+`spoolman_qidi_boxN.cfg` files themselves are usually untouched by updates,
+since QIDI's updater doesn't manage those files.
 
-```
-/home/mks/printer_data/config/
-```
+**Fix:** re-check `printer.cfg` after any firmware update and re-add the
+macro block from [Requirements](#required-spoolman-macros) if missing.
+Run `RESTART`, then `HELP` to confirm both macros are back before printing.
 
-Run:
+**Tip:** keep a copy of that macro block saved somewhere off the printer,
+so it's quick to re-paste after every update.
+
+### Fluidd 1.30.x Spoolman Save Bug
+
+Some QIDI firmware ships with Fluidd 1.30.x, which saves Spoolman slot
+selections with uppercase variable names (`BOX1_SLOT3__SPOOL_ID`), while
+Klipper's `save_variables` expects lowercase (`box1_slot3__spool_id`).
+Symptom: a spool assignment appears to save, but reverts after the next
+change or a reboot.
+
+**Fix:** run the included `patch_fluidd_spoolman_savevars.sh` via SSH:
 
 ```bash
 bash /home/mks/printer_data/config/patch_fluidd_spoolman_savevars.sh
 ```
 
-After the patch completes, refresh Fluidd:
+Then hard-refresh Fluidd (`Ctrl+Shift+R`). The script backs up Fluidd's
+compiled bundle before making any changes.
 
-```
-CTRL + SHIFT + R
-```
+### Active Spool Doesn't Clear on Unload
 
-The patch creates a backup before making changes.
+Unloading filament via Fluidd's Box Control panel (or the touchscreen)
+doesn't automatically clear the active spool — it self-corrects the next
+time a tool change or print start fires, but shows a stale spool_id until
+then.
 
----
+Run `CLEAR_ACTIVE_SPOOL` manually after:
+- Canceling a print
+- Unloading filament via the touchscreen/Box Control button
+- Any manual filament change outside the normal print workflow
 
-# How It Works
-
-This integration connects the QIDI Box filament system with Spoolman.
-
-The QIDI Box manages the physical filament locations.
-
-Spoolman manages:
-
-- Filament inventory
-- Remaining filament
-- Filament usage tracking
-- Active spool information
-
-The process works like this:
-
-```
-Physical QIDI Box Slot
-          ↓
-QIDI Tool Selection
-          ↓
-Tool To Slot Mapping
-          ↓
-Spoolman Active Spool
-```
-
-During printing:
-
-- The active filament spool is selected automatically.
-- Filament usage is recorded.
-- Spoolman subtracts filament from the spool actually being used.
-- Your filament inventory stays updated.
-
----
-
-# Basic Usage
-
-## Adding Filament To Spoolman
-
-Before printing:
-
-Add your filament spools to Spoolman.
-
-Enter:
-
-- Brand
-- Material type
-- Color
-- Filament diameter
-- Original spool weight
-- Remaining filament amount
-
-Each physical spool should have its own entry.
-
----
-# Assigning Spools To QIDI Box Slots
-
-Open:
-
-```
-Fluidd → Spoolman → Change Spool
-```
-
-Assign the spools to match the physical QIDI Box slots.
-
-Example:
-
-```
-BOX1_SLOT1 → Physical Slot 1
-BOX1_SLOT2 → Physical Slot 2
-BOX1_SLOT3 → Physical Slot 3
-BOX1_SLOT4 → Physical Slot 4
-```
-
-For dual QIDI Boxes:
-
-```
-BOX2_SLOT1 → Physical Slot 1
-BOX2_SLOT2 → Physical Slot 2
-BOX2_SLOT3 → Physical Slot 3
-BOX2_SLOT4 → Physical Slot 4
-```
-
-The Spoolman assignment must match the filament physically loaded in each slot.
-
----
-
-# Printing
-
-Print normally from:
-
-```
-QIDI Studio
-```
-
-No slicer profile changes are required.
-
-When the printer uses:
-
-```
-T0
-T1
-T2
-T3
-```
-
-the macros:
-
-- Read the current QIDI tool mapping.
-- Determine the physical QIDI Box slot.
-- Select the correct spool.
-- Set the active spool in Spoolman.
-
-Spoolman will then track filament usage from the spool actually printing.
-
----
-
-# Changing Filament
-
-When changing filament:
-
-1. Unload the current filament.
-2. Load the new filament.
-3. Update the spool assignment in Spoolman if needed.
-4. Verify the correct spool is active.
-
----
-
-# Important Usage Notes
-
-## Clearing Active Spool After Manual Actions
-
-The system normally handles active spool tracking automatically.
-
-You should clear the active spool if filament is changed outside the normal workflow.
-
-Run:
-
-```
-CLEAR_ACTIVE_SPOOL
-```
-
-after:
-
-- Manually canceling a print.
-- Unloading filament using the QIDI printer HMI touchscreen.
-- Manually changing filament without using the normal macros.
-
-This prevents Spoolman from continuing to subtract filament from the wrong spool.
-
----
-
-# Optional Unload Macro Update
-
-Adding `CLEAR_ACTIVE_SPOOL` to the unload macro is optional.
-
-If your workflow requires it, add:
+Optionally, add it to the end of your `M603` unload macro if you want this
+automatic for console-triggered unloads:
 
 ```ini
 M118 Unload finish
 CLEAR_ACTIVE_SPOOL
 ```
 
-to the end of your unload macro.
+---
 
-Most users will not need this change.
+## Basic Usage
+
+**Adding filament to Spoolman:** enter brand, material, color, diameter,
+starting weight, and remaining weight for each physical spool.
+
+**Printing:** print normally from QIDI Studio — no slicer profile changes
+needed beyond the one Start G-code line in step 5 above. As tools change
+during a print, the macros read the live tool→slot mapping, find the right
+spool, and update Spoolman automatically.
+
+**Changing filament:** unload the old spool, load the new one, update the
+slot's Spoolman assignment if the color changed, and verify the correct
+spool shows as active.
 
 ---
 
-# Add Spoolman To The Fluidd Dashboard
+## Credits
 
-In Fluidd:
+Originally based on the QIDI Box + Spoolman integration by **Ivantify**
+(single-box Q2 support): https://github.com/Ivantify/qidi/tree/main/qidi-box-spoolman
 
-Go to:
+This fork has been substantially rewritten to support the QIDI Plus 4 and
+multi-box (up to 16-slot) configurations, including a full rework of the
+tool-to-slot mapping logic, print-start activation, and firmware-update
+resilience notes.
 
-```
-Dashboard → Adjust Dashboard Layout
-```
-
-Enable:
-
-- Spoolman widget
-- Macros widget
-
-Save the layout.
-
-Refresh Fluidd:
-
-```
-CTRL + F5
-```
-
-Recommended macros to pin:
-
-```
-CHEATSHEET_BOX1
-CHEATSHEET_BOX2
-```
+Maintained by **jOethebuilder**.
 
 ---
 
-# Dual QIDI Box Verification
+## License
 
-If using two QIDI Boxes, verify both configurations.
-
-Open:
-
-```
-Fluidd → Console
-```
-
-Run:
-
-```
-CHEATSHEET_BOX1
-```
-
-and:
-
-```
-CHEATSHEET_BOX2
-```
-
-These commands show:
-
-- Slot assignments
-- Spool IDs
-- Current tool-to-slot mapping
-
-Example:
-
-```
-BOX1_SLOT1
-BOX1_SLOT2
-BOX1_SLOT3
-BOX1_SLOT4
-
-BOX2_SLOT1
-BOX2_SLOT2
-BOX2_SLOT3
-BOX2_SLOT4
-```
-
-All eight positions should show the correct spool IDs.
-
----
-
-# Debug / Current Settings
-
-To see what is currently assigned:
-
-Run:
-
-```
-CHEATSHEET_BOX1
-```
-
-This displays:
-
-- The `spool_id` assigned to each physical slot:
-  - `BOX1_SLOT1`
-  - `BOX1_SLOT2`
-  - `BOX1_SLOT3`
-  - `BOX1_SLOT4`
-
-- The current QIDI tool-to-slot mapping:
-  - `value_t0`
-  - `value_t1`
-  - `value_t2`
-  - `value_t3`
-
-For dual QIDI Boxes:
-
-Run:
-
-```
-CHEATSHEET_BOX2
-```
-
-This displays the same information for:
-
-- `BOX2_SLOT1`
-- `BOX2_SLOT2`
-- `BOX2_SLOT3`
-- `BOX2_SLOT4`
-
----
-
-# Persistence Across Restarts
-
-Spool selections are stored using:
-
-```
-saved_variables.cfg
-```
-
-Assignments should survive printer restarts.
-
-If old spool assignments or colors return after reboot, see:
-
-```
-Known Issue: Fluidd 1.30.x Spoolman Save Bug
-```
-
----
-
-# Credits
-
-## Original Project
-
-Created by:
-
-**Ivantify**
-
-Original contributions:
-
-- QIDI Q2 support
-- Single QIDI Box support
-- Initial Spoolman integration
-- Original macros and configuration
-
-Original project:
-
-https://github.com/Ivantify/qidi/tree/main/qidi-box-spoolman
-
----
-
-## Fork Development
-
-Maintained by:
-
-**jOethebuilder**
-
-Added:
-
-- QIDI Plus 4 support
-- Dual QIDI Box support
-- 8-slot filament management
-- Configuration updates
-- Testing
-- Documentation
-
----
-
-# License
-
-This fork retains the original MIT License.
-
-All original copyright notices remain intact.
+MIT License. Original copyright notice retained per license terms.
