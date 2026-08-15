@@ -9,9 +9,9 @@ This project tracks Spoolman filament usage by physical **Box slot**
 numbers to physical slots, and that mapping can change between jobs and
 even between boxes.
 
-Currently tested with **two** boxes (8 slots); written to extend cleanly to
-three or four boxes (12/16 slots) as hardware is added — see
-[Adding More Boxes](#adding-more-boxes-3rd--4th) below.
+Currently tested with **two** boxes (8 slots). 3-box and 4-box support has
+not been designed or built yet — see [Box 3 / Box 4 Support](#box-3--box-4-support--not-started)
+below.
 
 ---
 
@@ -34,7 +34,7 @@ three or four boxes (12/16 slots) as hardware is added — see
 |---|---|
 | QIDI Plus 4 + 1 QIDI Box | Expected to work |
 | QIDI Plus 4 + 2 QIDI Boxes | Tested |
-| QIDI Plus 4 + 3–4 QIDI Boxes | Expected to work (not tested), see below |
+| QIDI Plus 4 + 3–4 QIDI Boxes | Not designed/built yet, see below |
 | QIDI Plus4 Max | Expected to work (not tested) |
 | QIDI Q2 | Not tested on this fork — see original project below |
 
@@ -97,8 +97,9 @@ In Fluidd → Configuration → Create File, create one file per box you have:
 
 - `spoolman_qidi_box1.cfg` — always needed, paste contents from this repo
 - `spoolman_qidi_box2.cfg` — if running a 2nd Box
-- `spoolman_qidi_box3.cfg` / `spoolman_qidi_box4.cfg` — if/when you add a
-  3rd or 4th Box (see [Adding More Boxes](#adding-more-boxes-3rd--4th))
+
+(3rd/4th box files don't exist yet — see
+[Box 3 / Box 4 Support](#box-3--box-4-support--not-started) below.)
 
 ### 2. Add includes to `printer.cfg`
 
@@ -110,8 +111,8 @@ Order matters — `box.cfg` (QIDI vendor file) must load **before** these:
 [include spoolman_qidi_box2.cfg]
 ```
 
-(Add `spoolman_qidi_box3.cfg` / `box4.cfg` lines the same way as you add
-more boxes.)
+(Drop the box2 line if you only have one Box. 3rd/4th box includes aren't
+applicable yet — see [Box 3 / Box 4 Support](#box-3--box-4-support--not-started).)
 
 ### 3. Add the SET_ACTIVE_SPOOL / CLEAR_ACTIVE_SPOOL macros to `printer.cfg`
 
@@ -248,31 +249,22 @@ that, not assume a fixed T0-T3=Box1 / T4-T7=Box2 split.
 
 ---
 
-## Adding More Boxes (3rd / 4th)
+## Box 3 / Box 4 Support — Not Started
 
-QIDI's own firmware supports up to 4 boxes / T0-T15 (see `box1.cfg`'s
-stock macros). To extend this project to a 3rd or 4th box:
+3-box and 4-box configurations have **not been designed, built, or
+tested.** There is **no `spoolman_qidi_box3.cfg` or `spoolman_qidi_box4.cfg`
+in this repo**, and no plan for one yet either — don't go looking for
+files that don't exist, and don't attempt this on a real printer expecting
+it to work.
 
-1. Create `spoolman_qidi_box3.cfg` (and/or `box4.cfg`), following the same
-   structure as `box1.cfg`/`box2.cfg`: `BOX3_SLOT1-4` selector macros, a
-   `RESTORE_TOOL_SPOOLS_BOX3` restore routine, a uniquely-named
-   `delayed_gcode` (e.g. `RESTORE_SELECTED_SPOOLS_BOX3`), a
-   `CHEATSHEET_BOX3` debug macro, and `T8-T11` (box3) / `T12-T15` (box4)
-   overrides.
-2. **Critical:** every T-macro's if/elif chain — in *every* box file, not
-   just the new one — needs to be extended to check the additional slots
-   (`slot8`-`slot11` for box3, `slot12`-`slot15` for box4), the same way
-   box1/box2's macros already check each other's slots. Skipping this is
-   the single most common source of bugs (see the section on why plain
-   4-slot-only tool macros silently fail below).
-3. Give every `delayed_gcode` section a unique name across all box files —
-   Klipper does not allow duplicate section names, and this silently
-   breaks the *other* box's restore-on-boot behavior with no error message.
-4. Add `[include spoolman_qidi_box3.cfg]` (and `box4.cfg`) to `printer.cfg`,
-   after `box.cfg` and after the existing box files.
+The only reason this is mentioned at all: QIDI's own stock firmware
+supports up to 4 boxes / T0-T15 (visible in `box1.cfg`'s vendor macros),
+so the hardware/firmware ceiling exists — nobody has designed the Spoolman
+side of it yet.
 
-This hasn't been tested yet on real 3-/4-box hardware — if you get there
-before this note is updated, contributions/PRs are welcome.
+If you're running 3-4 boxes and want to help figure this out, open an
+issue — this section will get replaced with real information once there's
+something real to say.
 
 ---
 
