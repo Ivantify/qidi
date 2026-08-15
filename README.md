@@ -158,22 +158,22 @@ Check for errors in the console.
 
 ### 5. Verify the macros loaded
 
-Don't scroll through `HELP` output — it's long and easy to miss things in.
-Instead, just run the macro directly in the console:
+Run `HELP` in the console and confirm these three are listed (they're
+sorted alphabetically, so they're easy to scan for):
 
 ```
+ACTIVATE_SPOOL_FOR_TOOL
 CLEAR_ACTIVE_SPOOL
+SET_ACTIVE_SPOOL
 ```
 
-- **If it's missing**, Klipper gives an unmistakable error like
-  `Unknown command:"CLEAR_ACTIVE_SPOOL"` — go back to
-  [step 3](#3-add-the-set_active_spool--clear_active_spool-macros-to-printercfg)
-  and re-check `printer.cfg`.
-- **If it's loaded**, it just runs with no error.
+If one is missing, it didn't load — go back to
+[step 3](#3-add-the-set_active_spool--clear_active_spool-macros-to-printercfg)
+and re-check `printer.cfg`, then `RESTART` again.
 
-You can check `ACTIVATE_SPOOL_FOR_TOOL` and `SET_ACTIVE_SPOOL` the same
-way, or search "spool" in Fluidd's Macros panel filter box to see all three
-listed at once.
+This is also the fastest way to check after every QIDI firmware update
+(see [Known Issue: QIDI Firmware Updates Wipe printer.cfg](#known-issue-qidi-firmware-updates-wipe-printercfg))
+— just run `HELP` and glance for the three macros in alphabetical order.
 
 ### 6. Required slicer Start G-code addition
 
