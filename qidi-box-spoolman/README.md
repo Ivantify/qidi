@@ -1,11 +1,14 @@
-# QIDI Q2 / Plus4 + QIDI Box + Spoolman (Fluidd) — correct slot-based spool tracking
+# Qidi Plus 5 / QIDI Q2 / Plus4 + QIDI Box + Spoolman (Fluidd) — correct slot-based spool tracking
 
 This update helps Spoolman track filament usage correctly on **QIDI printers with QIDI Box** by linking Spoolman spools to **physical Box slots** (Slot 1–4), not to tools (T0–T3).
 
 **Why this matters:** on QIDI, the mapping **Tool → Box slot** can change between jobs/sessions. If you assign spools directly to `T0..T3`, your “colors” can look swapped. Slot-based assignment stays correct even when QIDI changes the tool/slot mapping behind the scenes.
 
 ✅ Works with **Qidi Studio**, **Orca Slicer**, and any other slicer.  
-✅ Tested: Qidi Q2 (firmware v.1.1.0-1.1.1) + single Qidi Box  
+✅ Tested: Qidi Q2 (firmware v.1.1.0-1.1.1) + single Qidi Box + Fluidd 1.30.5
+
+✅ Tested: Qidi Plus 5 (firmware v.01.01.02.01) + single Qidi Box V2
+
 ✅ Also includes a fix for the SAVED_VARIABLES Fluidd 1.30.x bug (used by Qidi) — see https://github.com/fluidd-core/fluidd/pull/1563 — which preserves spool setup across restarts and power cycles.   
 ⚠️ Should also work on Plus4 (the Box logic is the same), but not tested yet.   
 ⚠️ Do it on your own risk and only when printer idle, and take a backup first. (You’ve been warned.)
@@ -56,9 +59,11 @@ If you don’t have those macros, add them at the end of the `printer.cfg`.
 
 In Fluidd → **Configuration**:
 
-1) Create `spoolman_qidi_box1.cfg` and paste contents from this repo:  
+1) Qidi Q2/plu4: Create `spoolman_qidi_box1.cfg` and paste contents from this repo:  
    [`spoolman_qidi_box1.cfg`](./spoolman_qidi_box1.cfg)
-2) (Optional) Open `gcode_macro.cfg` → find `M603` macro (unload filament)→ Add `CLEAR_ACTIVE_SPOOL` to the end of M603 (Put it after `M118 Unload finish`):
+   Qidi Plus 5:  Create file `spoolman_qidi_box2.cfg` and paste contents from this repo:  
+   [`spoolman_qidi_box1.cfg`](./spoolman_qidi_box1.cfg)
+3) (Optional) Open `gcode_macro.cfg` → find `M603` macro (unload filament)→ Add `CLEAR_ACTIVE_SPOOL` to the end of M603 (Put it after `M118 Unload finish`):
 
 ```ini
     M118 Unload finish
@@ -67,10 +72,17 @@ In Fluidd → **Configuration**:
 
 This prevents Spoolman from continuing to deduct from the previously active spool after an unload.
 
+Qidi Plus 5: for "M603" look into `./klipper-macros-qd/filament.cfg`. Apply changes described above.
+
 ### 2) Include `spoolman_qidi_box1.cfg`  in `printer.cfg` (order matters)
 
 Open `printer.cfg` and ensure order like this:
 
+```ini
+[include box.cfg]                 # QIDI vendor file (Box logic)
+[include spoolman_qidi_box1.cfg]  # this repo (must be AFTER box.cfg)
+```
+Qidi Plus 5:
 ```ini
 [include box.cfg]                 # QIDI vendor file (Box logic)
 [include spoolman_qidi_box1.cfg]  # this repo (must be AFTER box.cfg)
@@ -151,7 +163,17 @@ This is the practical fix if you can’t upgrade Fluidd on your printer.
 1) SSH into the printer and upload  [`patch_fluidd_spoolman_savevars.sh`](./patch_fluidd_spoolman_savevars.sh) to:
   `/home/mks/printer_data/config/patch_fluidd_spoolman_savevars.sh`
 
-2) Run (copy-paste):
+Qidi Plus 5: ssh into the printer. Default username/password: qidi/qiditech
+upload  [`patch_fluidd_spoolman_savevars.sh`](./patch_fluidd_spoolman_savevars.sh) to:
+  `/home/qidi/printer_data/config/patch_fluidd_spoolman_savevars.sh`
+Adapt the script to the new path: from [``/home/mks/``] to [``/home/kidi/``]. 32 files will be adapted: 
+```bash
+FLUIDD_DIR="/home/qidi/fluidd"
+STAMP="$(date +%F_%H%M%S)"
+BACKUP_DIR="/home/qidi/fluidd.bak_${STAMP}"
+```
+
+3) Run (copy-paste):
 
 ```bash
 bash /home/mks/printer_data/config/patch_fluidd_spoolman_savevars.sh
